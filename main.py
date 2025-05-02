@@ -12,7 +12,7 @@ ADMIN_ID = 5767213888  # Update with your Telegram ID
 # Required channels
 required_channels = {
     "@redhatJoinmain": "Join Channel 1 📡",
-    "@blacK_BET10": "Join Channel 2 📡"
+    "@redhatFreeHacks": "Join Channel 2 📡"
 }
 
 IMAGES = [
