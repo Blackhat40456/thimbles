@@ -77,7 +77,7 @@ def start(message):
 
     if all(status == '✅' for status in channel_status.values()):
         referrals = get_user_referrals(user_id)
-        if referrals >= 10:
+        if referrals >= 3:
             welcome_user(message)
         else:
             ask_for_referrals(message, referrals)
@@ -105,7 +105,7 @@ def check_channels(call):
 
     if all(status == '✅' for status in channel_status.values()):
         referrals = get_user_referrals(user_id)
-        if referrals >= 10:
+        if referrals >= 3:
             welcome_user(call.message)
         else:
             ask_for_referrals(call.message, referrals)
@@ -119,8 +119,8 @@ def ask_for_referrals(message, count):
     markup.add(types.InlineKeyboardButton("📢 Share your invite link", url=invite_link))
 
     referral_message = (
-        f"<b>You need 10 referrals to access the bot!</b>\n\n"
-        f"<i>👥 Current referrals: {count}/10</i>\n"
+        f"<b>You need 3 referrals to access the bot!</b>\n\n"
+        f"<i>👥 Current referrals: {count}/3</i>\n"
         f"<i>🔗 Invite Link:</i>\n<a href='{invite_link}'>Clicck here to Start👈</a>\n\n"
         "<i>👉 Share this link with your friends and ask them to click it to join. Once they join, you will get credit!</i>\n\n"
         "<i>To get credit for your referral, your friends must join the required channels.</i>"
