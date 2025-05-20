@@ -4,7 +4,7 @@ import random
 from telebot import types
 import os
 
-API_TOKEN = "7753611465:AAHGF6-DlfuX-vFi28MYjxbq-PVJoJeHKJ0"
+API_TOKEN = "7560937841:AAHizOMSN94qemWXYknRwW73nWAP0Ynt4wM"
 bot = telebot.TeleBot(API_TOKEN)
 
 ADMIN_ID = 5767213888  # Update with your Telegram ID
