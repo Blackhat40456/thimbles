@@ -21,29 +21,14 @@ IMAGES = [
     "https://i.imgur.com/ogjTLdZ.jpeg",
 ]
 
-# Ensure files exist
-for filename in ["users.txt", "referrals.txt"]:
-    if not os.path.exists(filename):
-        open(filename, "w").close()
+# Ensure file existence
+if not os.path.exists("users.txt"):
+    open("users.txt", "w").close()
 
+if not os.path.exists("referrals.txt"):
+    open("referrals.txt", "w").close()
 
-def deduplicate_users():
-    """Remove duplicate user IDs from users.txt"""
-    try:
-        with open("users.txt", "r") as f:
-            users = f.read().splitlines()
-        unique_users = sorted(set(users))  # Remove duplicates & sort
-        with open("users.txt", "w") as f:
-            for user in unique_users:
-                f.write(user + "\n")
-    except Exception as e:
-        print("Error during deduplication:", e)
-
-
-# Call at startup
-deduplicate_users()
-
-
+# Helper Functions
 def has_joined_required_channels(user_id):
     status_dict = {}
     for channel in required_channels.keys():
@@ -70,25 +55,23 @@ def add_referral(inviter_id, new_user_id):
         f.write(f"{inviter_id}:{new_user_id}\n")
 
 
+# Handlers
 @bot.message_handler(commands=['start'])
 def start(message):
-    user_id = str(message.from_user.id)
+    user_id = message.from_user.id
     args = message.text.split()
 
-    # Save user if new (auto deduplicate)
+    # Save user if new
     with open("users.txt", "a+") as f:
         f.seek(0)
         users = f.read().splitlines()
-        if user_id not in users:
-            f.write(user_id + "\n")
-
-            # Referral
+        if str(user_id) not in users:
+            f.write(str(user_id) + "\n")
+            # Handle referral
             if len(args) > 1:
                 inviter_id = args[1]
-                if inviter_id != user_id:
+                if inviter_id != str(user_id):
                     add_referral(inviter_id, user_id)
-
-    deduplicate_users()  # Clean up after each start
 
     channel_status = has_joined_required_channels(user_id)
 
@@ -110,6 +93,7 @@ def ask_to_join_channels(message, channel_status):
     ]
     markup.add(*channel_buttons)
     markup.add(types.InlineKeyboardButton("✅ I've Joined", callback_data="check_channels"))
+
     text = "*You must join all channels first!*"
     bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode='Markdown')
 
@@ -142,8 +126,17 @@ def ask_for_referrals(message, count):
         "<i>To get credit for your referral, your friends must join the required channels.</i>"
     )
 
-    bot.send_message(message.chat.id, referral_message, reply_markup=markup, parse_mode='HTML')
-    bot.send_message(message.chat.id, "You can forward the☝️ message with your invite link to your friends!")
+    bot.send_message(
+        message.chat.id,
+        referral_message,
+        reply_markup=markup,
+        parse_mode='HTML'
+    )
+
+    bot.send_message(
+        message.chat.id,
+        "You can forward the☝️ message with your invite link to your friends! Make sure they click on the link to join."
+    )
 
 
 def welcome_user(message):
@@ -185,7 +178,7 @@ def restart_bot(message):
     start(message)
 
 
-# Admin Panel
+# Admin Panel (Optional)
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
     if message.from_user.id == ADMIN_ID:
@@ -204,16 +197,20 @@ def request_broadcast_text(message):
 def broadcast_message(message):
     count = 0
     try:
-        deduplicate_users()  # Safety before broadcast
+        if not os.path.exists("users.txt"):
+            bot.send_message(message.chat.id, "User list is empty.")
+            return
+
         with open("users.txt", "r") as f:
-            users = f.read().splitlines()
+            users = list(set(f.read().splitlines()))  # unique user ids
 
         for user in users:
             try:
                 bot.send_message(int(user), message.text, parse_mode='Markdown')
                 count += 1
                 time.sleep(0.3)
-            except:
+            except Exception as e:
+                print(f"Failed to send to {user}: {e}")
                 continue
 
         bot.send_message(message.chat.id, f"✅ Broadcast sent to {count} users.")
