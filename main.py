@@ -196,26 +196,27 @@ def request_broadcast_text(message):
 
 def broadcast_message(message):
     count = 0
+    failed = 0
     try:
         if not os.path.exists("users.txt"):
             bot.send_message(message.chat.id, "User list is empty.")
             return
 
         with open("users.txt", "r") as f:
-            users = list(set(f.read().splitlines()))  # unique user ids
+            users = list(set(f.read().splitlines()))
+            users = [u.strip() for u in users if u.strip().isdigit()]
 
         for user in users:
             try:
                 bot.send_message(int(user), message.text, parse_mode='Markdown')
                 count += 1
+                print(f"Message sent to user: {user}")
                 time.sleep(0.3)
             except Exception as e:
+                failed += 1
                 print(f"Failed to send to {user}: {e}")
                 continue
 
-        bot.send_message(message.chat.id, f"✅ Broadcast sent to {count} users.")
+        bot.send_message(message.chat.id, f"✅ Broadcast sent to {count} users, failed: {failed}.")
     except Exception as e:
         bot.send_message(message.chat.id, f"Error: {e}")
-
-
-bot.polling(none_stop=True)
