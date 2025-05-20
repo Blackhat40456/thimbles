@@ -21,14 +21,29 @@ IMAGES = [
     "https://i.imgur.com/ogjTLdZ.jpeg",
 ]
 
-# Ensure file existence
-if not os.path.exists("users.txt"):
-    open("users.txt", "w").close()
+# Ensure files exist
+for filename in ["users.txt", "referrals.txt"]:
+    if not os.path.exists(filename):
+        open(filename, "w").close()
 
-if not os.path.exists("referrals.txt"):
-    open("referrals.txt", "w").close()
 
-# Helper Functions
+def deduplicate_users():
+    """Remove duplicate user IDs from users.txt"""
+    try:
+        with open("users.txt", "r") as f:
+            users = f.read().splitlines()
+        unique_users = sorted(set(users))  # Remove duplicates & sort
+        with open("users.txt", "w") as f:
+            for user in unique_users:
+                f.write(user + "\n")
+    except Exception as e:
+        print("Error during deduplication:", e)
+
+
+# Call at startup
+deduplicate_users()
+
+
 def has_joined_required_channels(user_id):
     status_dict = {}
     for channel in required_channels.keys():
@@ -42,33 +57,38 @@ def has_joined_required_channels(user_id):
             status_dict[channel] = '❌'
     return status_dict
 
+
 def get_user_referrals(user_id):
     with open("referrals.txt", "r") as f:
         lines = f.read().splitlines()
     referrals = [line.split(":")[1] for line in lines if line.split(":")[0] == str(user_id)]
     return len(referrals)
 
+
 def add_referral(inviter_id, new_user_id):
     with open("referrals.txt", "a") as f:
         f.write(f"{inviter_id}:{new_user_id}\n")
 
-# Handlers
+
 @bot.message_handler(commands=['start'])
 def start(message):
-    user_id = message.from_user.id
+    user_id = str(message.from_user.id)
     args = message.text.split()
 
-    # Save user if new
+    # Save user if new (auto deduplicate)
     with open("users.txt", "a+") as f:
         f.seek(0)
         users = f.read().splitlines()
-        if str(user_id) not in users:
-            f.write(str(user_id) + "\n")
-            # Handle referral
+        if user_id not in users:
+            f.write(user_id + "\n")
+
+            # Referral
             if len(args) > 1:
                 inviter_id = args[1]
-                if inviter_id != str(user_id):
+                if inviter_id != user_id:
                     add_referral(inviter_id, user_id)
+
+    deduplicate_users()  # Clean up after each start
 
     channel_status = has_joined_required_channels(user_id)
 
@@ -81,6 +101,7 @@ def start(message):
     else:
         ask_to_join_channels(message, channel_status)
 
+
 def ask_to_join_channels(message, channel_status):
     markup = types.InlineKeyboardMarkup(row_width=2)
     channel_buttons = [
@@ -89,9 +110,9 @@ def ask_to_join_channels(message, channel_status):
     ]
     markup.add(*channel_buttons)
     markup.add(types.InlineKeyboardButton("✅ I've Joined", callback_data="check_channels"))
-
     text = "*You must join all channels first!*"
     bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode='Markdown')
+
 
 @bot.callback_query_handler(func=lambda call: call.data == "check_channels")
 def check_channels(call):
@@ -107,6 +128,7 @@ def check_channels(call):
     else:
         bot.answer_callback_query(call.id, "❌ You still haven't joined all channels!")
 
+
 def ask_for_referrals(message, count):
     markup = types.InlineKeyboardMarkup()
     invite_link = f"https://t.me/{bot.get_me().username}?start={message.from_user.id}"
@@ -120,17 +142,9 @@ def ask_for_referrals(message, count):
         "<i>To get credit for your referral, your friends must join the required channels.</i>"
     )
 
-    bot.send_message(
-        message.chat.id,
-        referral_message,
-        reply_markup=markup,
-        parse_mode='HTML'
-    )
+    bot.send_message(message.chat.id, referral_message, reply_markup=markup, parse_mode='HTML')
+    bot.send_message(message.chat.id, "You can forward the☝️ message with your invite link to your friends!")
 
-    bot.send_message(
-        message.chat.id,
-        "You can forward the☝️ message with your invite link to your friends! Make sure they click on the link to join."
-    )
 
 def welcome_user(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -142,6 +156,7 @@ def welcome_user(message):
 
     bot.send_message(message.chat.id, "*🎮 Welcome to the Game Menu! Choose an option:*", reply_markup=markup, parse_mode='Markdown')
 
+
 @bot.message_handler(func=lambda message: message.text == "🌀 NEXT BALL POSITION")
 def next_ball_position(message):
     user_id = message.from_user.id
@@ -150,11 +165,13 @@ def next_ball_position(message):
     random_image = random.choice(IMAGES)
     bot.send_photo(user_id, random_image, caption="✅ Next position ready!")
 
+
 @bot.message_handler(func=lambda message: message.text == "🛑 STOP HACK")
 def stop_hack(message):
     bot.send_message(message.chat.id, "⚠️ Stopping the hack...", parse_mode='Markdown')
     time.sleep(2)
     bot.send_message(message.chat.id, "✅ Hack stopped successfully!", parse_mode='Markdown')
+
 
 @bot.message_handler(func=lambda message: message.text == "🎲 NEW GAME")
 def new_game(message):
@@ -162,11 +179,13 @@ def new_game(message):
     time.sleep(2)
     bot.send_message(message.chat.id, "✅ New game ready!", parse_mode='Markdown')
 
+
 @bot.message_handler(func=lambda message: message.text == "🔄 Restart")
 def restart_bot(message):
     start(message)
 
-# Admin Panel (Only Admin)
+
+# Admin Panel
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
     if message.from_user.id == ADMIN_ID:
@@ -175,19 +194,17 @@ def admin_panel(message):
         markup.add(broadcast_button)
         bot.send_message(message.chat.id, "Welcome to the admin panel:", reply_markup=markup)
 
-admin_broadcast_state = {}
 
 @bot.message_handler(func=lambda message: message.text == "📨 Send Text to Users" and message.from_user.id == ADMIN_ID)
 def request_broadcast_text(message):
-    admin_broadcast_state[message.from_user.id] = True
-    bot.send_message(message.chat.id, "✍️ Please enter the message you want to send to all users:")
+    bot.send_message(message.chat.id, "Please enter the message you want to send to all users:")
+    bot.register_next_step_handler(message, broadcast_message)
 
-@bot.message_handler(func=lambda message: admin_broadcast_state.get(message.from_user.id, False))
+
 def broadcast_message(message):
-    admin_broadcast_state[message.from_user.id] = False
-
     count = 0
     try:
+        deduplicate_users()  # Safety before broadcast
         with open("users.txt", "r") as f:
             users = f.read().splitlines()
 
@@ -201,6 +218,7 @@ def broadcast_message(message):
 
         bot.send_message(message.chat.id, f"✅ Broadcast sent to {count} users.")
     except Exception as e:
-        bot.send_message(message.chat.id, f"❌ Error: {e}")
+        bot.send_message(message.chat.id, f"Error: {e}")
+
 
 bot.polling(none_stop=True)
