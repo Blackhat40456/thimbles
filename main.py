@@ -205,6 +205,23 @@ def request_broadcast_text(message):
     bot.send_message(message.chat.id, "✍️ Please enter the message you want to send to all users:")
 
 
+# Admin Panel (Optional)
+@bot.message_handler(commands=['admin'])
+def admin_panel(message):
+    if message.from_user.id == ADMIN_ID:
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        broadcast_button = types.KeyboardButton("📨 Send Text to Users")
+        markup.add(broadcast_button)
+        bot.send_message(message.chat.id, "Welcome to the admin panel:", reply_markup=markup)
+
+# Broadcast state tracker
+admin_broadcast_state = {}
+
+@bot.message_handler(func=lambda message: message.text == "📨 Send Text to Users" and message.from_user.id == ADMIN_ID)
+def request_broadcast_text(message):
+    admin_broadcast_state[message.from_user.id] = True
+    bot.send_message(message.chat.id, "✍️ Please enter the message you want to send to all users:")
+
 @bot.message_handler(func=lambda message: admin_broadcast_state.get(message.from_user.id, False))
 def broadcast_message(message):
     admin_broadcast_state[message.from_user.id] = False  # Reset state
@@ -219,7 +236,7 @@ def broadcast_message(message):
                 bot.send_message(int(user), message.text, parse_mode='Markdown')
                 count += 1
                 time.sleep(0.3)
-            except Exception as e:
+            except:
                 continue
 
         bot.send_message(message.chat.id, f"✅ Broadcast sent to {count} users.")
