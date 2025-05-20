@@ -28,6 +28,19 @@ if not os.path.exists("users.txt"):
 if not os.path.exists("referrals.txt"):
     open("referrals.txt", "w").close()
 
+# Clean users.txt on start (optional but recommended)
+def clean_users_file():
+    with open("users.txt", "r") as f:
+        users = f.read().splitlines()
+    users = list(set([user.strip() for user in users if user.strip().isdigit()]))
+    with open("users.txt", "w") as f:
+        for user in users:
+            f.write(user + "\n")
+    print(f"Cleaned users.txt file. Total unique users: {len(users)}")
+
+clean_users_file()
+
+
 # Helper Functions
 def has_joined_required_channels(user_id):
     status_dict = {}
@@ -126,13 +139,15 @@ def ask_for_referrals(message, count):
         "<i>To get credit for your referral, your friends must join the required channels.</i>"
     )
 
+    # Send the referral message with the invite link
     bot.send_message(
         message.chat.id,
         referral_message,
         reply_markup=markup,
-        parse_mode='HTML'
+        parse_mode='HTML'  # Switch to HTML parsing
     )
 
+    # Tell the user how to forward the link
     bot.send_message(
         message.chat.id,
         "You can forward the☝️ message with your invite link to your friends! Make sure they click on the link to join."
@@ -220,3 +235,6 @@ def broadcast_message(message):
         bot.send_message(message.chat.id, f"✅ Broadcast sent to {count} users, failed: {failed}.")
     except Exception as e:
         bot.send_message(message.chat.id, f"Error: {e}")
+
+
+bot.polling(none_stop=True)
