@@ -7,7 +7,7 @@ import os
 API_TOKEN = "7560937841:AAHizOMSN94qemWXYknRwW73nWAP0Ynt4wM"
 bot = telebot.TeleBot(API_TOKEN)
 
-ADMIN_ID = 5767213888  # Your Telegram ID
+ADMIN_ID = 5767213888  # Update with your Telegram ID
 
 # Required channels
 required_channels = {
@@ -21,12 +21,14 @@ IMAGES = [
     "https://i.imgur.com/ogjTLdZ.jpeg",
 ]
 
-# Ensure files exist
-for file_name in ["users.txt", "referrals.txt", "active_users.txt"]:
-    if not os.path.exists(file_name):
-        open(file_name, "w").close()
+# Ensure file existence
+if not os.path.exists("users.txt"):
+    open("users.txt", "w").close()
 
-# ===== Helper Functions =====
+if not os.path.exists("referrals.txt"):
+    open("referrals.txt", "w").close()
+
+# Helper Functions
 def has_joined_required_channels(user_id):
     status_dict = {}
     for channel in required_channels.keys():
@@ -53,28 +55,19 @@ def add_referral(inviter_id, new_user_id):
         f.write(f"{inviter_id}:{new_user_id}\n")
 
 
-def save_active_user(user_id):
-    user_id = str(user_id)
-    with open("active_users.txt", "a+") as f:
-        f.seek(0)
-        users = f.read().splitlines()
-        if user_id not in users:
-            f.write(user_id + "\n")
-
-
-# ===== Handlers =====
+# Handlers
 @bot.message_handler(commands=['start'])
 def start(message):
     user_id = message.from_user.id
-    save_active_user(user_id)
     args = message.text.split()
 
-    # Save new user
+    # Save user if new
     with open("users.txt", "a+") as f:
         f.seek(0)
         users = f.read().splitlines()
         if str(user_id) not in users:
             f.write(str(user_id) + "\n")
+            # Handle referral
             if len(args) > 1:
                 inviter_id = args[1]
                 if inviter_id != str(user_id):
@@ -101,13 +94,13 @@ def ask_to_join_channels(message, channel_status):
     markup.add(*channel_buttons)
     markup.add(types.InlineKeyboardButton("✅ I've Joined", callback_data="check_channels"))
 
-    bot.send_message(message.chat.id, "*You must join all channels first!*", reply_markup=markup, parse_mode='Markdown')
+    text = "*You must join all channels first!*"
+    bot.send_message(message.chat.id, text, reply_markup=markup, parse_mode='Markdown')
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "check_channels")
 def check_channels(call):
     user_id = call.from_user.id
-    save_active_user(user_id)
     channel_status = has_joined_required_channels(user_id)
 
     if all(status == '✅' for status in channel_status.values()):
@@ -121,78 +114,92 @@ def check_channels(call):
 
 
 def ask_for_referrals(message, count):
-    save_active_user(message.from_user.id)
-    invite_link = f"https://t.me/{bot.get_me().username}?start={message.from_user.id}"
     markup = types.InlineKeyboardMarkup()
+    invite_link = f"https://t.me/{bot.get_me().username}?start={message.from_user.id}"
     markup.add(types.InlineKeyboardButton("📢 Share your invite link", url=invite_link))
 
     referral_message = (
         f"<b>You need 3 referrals to access the bot!</b>\n\n"
         f"<i>👥 Current referrals: {count}/3</i>\n"
-        f"<i>🔗 Invite Link:</i>\n<a href='{invite_link}'>Click here to start</a>\n\n"
-        "<i>👉 Share this link with your friends and ask them to click it to join. Once they join, you will get credit!</i>\n"
-        "<i>To get credit, your friends must join the required channels.</i>"
+        f"<i>🔗 Invite Link:</i>\n<a href='{invite_link}'>Clicck here to Start👈</a>\n\n"
+        "<i>👉 Share this link with your friends and ask them to click it to join. Once they join, you will get credit!</i>\n\n"
+        "<i>To get credit for your referral, your friends must join the required channels.</i>"
     )
 
-    bot.send_message(message.chat.id, referral_message, reply_markup=markup, parse_mode='HTML')
-    bot.send_message(message.chat.id, "Forward this message to your friends!")
+    # Send the referral message with the invite link
+    bot.send_message(
+        message.chat.id,
+        referral_message,
+        reply_markup=markup,
+        parse_mode='HTML'  # Switch to HTML parsing
+    )
+
+    # Tell the user how to forward the link
+    bot.send_message(
+        message.chat.id,
+        "You can forward the☝️ message with your invite link to your friends! Make sure they click on the link to join."
+    )
 
 
 def welcome_user(message):
-    save_active_user(message.from_user.id)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(
-        types.KeyboardButton("🌀 NEXT BALL POSITION"),
-        types.KeyboardButton("🛑 STOP HACK"),
-        types.KeyboardButton("🎲 NEW GAME"),
-        types.KeyboardButton("🔄 Restart")
-    )
+    btn1 = types.KeyboardButton("🌀 NEXT BALL POSITION")
+    btn2 = types.KeyboardButton("🛑 STOP HACK")
+    btn3 = types.KeyboardButton("🎲 NEW GAME")
+    restart_btn = types.KeyboardButton("🔄 Restart")
+    markup.add(btn1, btn2, btn3, restart_btn)
+
     bot.send_message(message.chat.id, "*🎮 Welcome to the Game Menu! Choose an option:*", reply_markup=markup, parse_mode='Markdown')
 
 
-@bot.message_handler(func=lambda message: message.text in ["🌀 NEXT BALL POSITION", "🛑 STOP HACK", "🎲 NEW GAME", "🔄 Restart"])
-def handle_game_buttons(message):
-    save_active_user(message.from_user.id)
-
-    if message.text == "🌀 NEXT BALL POSITION":
-        bot.send_message(message.chat.id, "🔄 Calculating next ball position...")
-        time.sleep(2)
-        bot.send_photo(message.chat.id, random.choice(IMAGES), caption="✅ Next position ready!")
-
-    elif message.text == "🛑 STOP HACK":
-        bot.send_message(message.chat.id, "⚠️ Stopping the hack...")
-        time.sleep(2)
-        bot.send_message(message.chat.id, "✅ Hack stopped successfully!")
-
-    elif message.text == "🎲 NEW GAME":
-        bot.send_message(message.chat.id, "🆕 Starting a new game...")
-        time.sleep(2)
-        bot.send_message(message.chat.id, "✅ New game ready!")
-
-    elif message.text == "🔄 Restart":
-        start(message)
+@bot.message_handler(func=lambda message: message.text == "🌀 NEXT BALL POSITION")
+def next_ball_position(message):
+    user_id = message.from_user.id
+    bot.send_message(user_id, "🔄 Calculating next ball position...", parse_mode='Markdown')
+    time.sleep(2)
+    random_image = random.choice(IMAGES)
+    bot.send_photo(user_id, random_image, caption="✅ Next position ready!")
 
 
-# ===== Admin Panel =====
+@bot.message_handler(func=lambda message: message.text == "🛑 STOP HACK")
+def stop_hack(message):
+    bot.send_message(message.chat.id, "⚠️ Stopping the hack...", parse_mode='Markdown')
+    time.sleep(2)
+    bot.send_message(message.chat.id, "✅ Hack stopped successfully!", parse_mode='Markdown')
+
+
+@bot.message_handler(func=lambda message: message.text == "🎲 NEW GAME")
+def new_game(message):
+    bot.send_message(message.chat.id, "🆕 Starting a new game...", parse_mode='Markdown')
+    time.sleep(2)
+    bot.send_message(message.chat.id, "✅ New game ready!", parse_mode='Markdown')
+
+
+@bot.message_handler(func=lambda message: message.text == "🔄 Restart")
+def restart_bot(message):
+    start(message)
+
+
+# Admin Panel (Optional)
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
     if message.from_user.id == ADMIN_ID:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add(types.KeyboardButton("📨 Send Text to Users"))
+        broadcast_button = types.KeyboardButton("📨 Send Text to Users")
+        markup.add(broadcast_button)
         bot.send_message(message.chat.id, "Welcome to the admin panel:", reply_markup=markup)
 
 
-@bot.message_handler(func=lambda m: m.text == "📨 Send Text to Users" and m.from_user.id == ADMIN_ID)
+@bot.message_handler(func=lambda message: message.text == "📨 Send Text to Users" and message.from_user.id == ADMIN_ID)
 def request_broadcast_text(message):
-    bot.send_message(message.chat.id, "Please enter the message to send to all active users:")
+    bot.send_message(message.chat.id, "Please enter the message you want to send to all users:")
     bot.register_next_step_handler(message, broadcast_message)
 
 
 def broadcast_message(message):
     count = 0
-    failed = 0
     try:
-        with open("active_users.txt", "r") as f:
+        with open("users.txt", "r") as f:
             users = f.read().splitlines()
 
         for user in users:
@@ -201,19 +208,11 @@ def broadcast_message(message):
                 count += 1
                 time.sleep(0.3)
             except:
-                failed += 1
                 continue
 
-        bot.send_message(message.chat.id, f"✅ Broadcast sent to {count} users, failed: {failed}")
+        bot.send_message(message.chat.id, f"✅ Broadcast sent to {count} users.")
     except Exception as e:
         bot.send_message(message.chat.id, f"Error: {e}")
 
 
-# ===== Global Tracker =====
-@bot.message_handler(func=lambda message: True)
-def track_all_messages(message):
-    save_active_user(message.from_user.id)
-    bot.reply_to(message, "Use /start or buttons to interact.")
-
-# ===== Start Polling =====
 bot.polling(none_stop=True)
