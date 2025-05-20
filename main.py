@@ -196,7 +196,19 @@ def request_broadcast_text(message):
     bot.register_next_step_handler(message, broadcast_message)
 
 
+# Add a dictionary to keep track of admin broadcast state
+admin_broadcast_state = {}
+
+@bot.message_handler(func=lambda message: message.text == "📨 Send Text to Users" and message.from_user.id == ADMIN_ID)
+def request_broadcast_text(message):
+    admin_broadcast_state[message.from_user.id] = True
+    bot.send_message(message.chat.id, "✍️ Please enter the message you want to send to all users:")
+
+
+@bot.message_handler(func=lambda message: admin_broadcast_state.get(message.from_user.id, False))
 def broadcast_message(message):
+    admin_broadcast_state[message.from_user.id] = False  # Reset state
+
     count = 0
     try:
         with open("users.txt", "r") as f:
@@ -207,12 +219,9 @@ def broadcast_message(message):
                 bot.send_message(int(user), message.text, parse_mode='Markdown')
                 count += 1
                 time.sleep(0.3)
-            except:
+            except Exception as e:
                 continue
 
         bot.send_message(message.chat.id, f"✅ Broadcast sent to {count} users.")
     except Exception as e:
-        bot.send_message(message.chat.id, f"Error: {e}")
-
-
-bot.polling(none_stop=True)
+        bot.send_message(message.chat.id, f"❌ Error: {e}")
