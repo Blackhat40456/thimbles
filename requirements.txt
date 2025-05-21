@@ -2,3 +2,4 @@ pyTelegramBotAPI==4.15.4
 requests
 Pillow
 python-dotenv
+aiogram
