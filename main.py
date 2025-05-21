@@ -1,97 +1,61 @@
-import logging
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import executor
-import sqlite3
-from aiogram.dispatcher.filters import Command
+from aiogram.dispatcher import FSMContext
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.dispatcher.filters import Text
 
-API_TOKEN = '7560937841:AAHizOMSN94qemWXYknRwW73nWAP0Ynt4wM'  # আপনার bot টোকেন এখানে বসান
-ADMIN_ID = 5767213888  # আপনার Telegram User ID
+API_TOKEN = '7560937841:AAHizOMSN94qemWXYknRwW73nWAP0Ynt4wM'  # এখানে আপনার Bot Token দিন
 
-# Bot setup
-bot = Bot(token=API_TOKEN, parse_mode='HTML')
-dp = Dispatcher(bot)
-logging.basicConfig(level=logging.INFO)
+bot = Bot(token=API_TOKEN, parse_mode="HTML")
+storage = MemoryStorage()
+dp = Dispatcher(bot, storage=storage)
 
-# --- DB Functions ---
-def add_user(chat_id):
-    conn = sqlite3.connect("thimbles/users.db")
-    c = conn.cursor()
-    c.execute("CREATE TABLE IF NOT EXISTS users (chat_id INTEGER PRIMARY KEY)")
-    c.execute("INSERT OR IGNORE INTO users (chat_id) VALUES (?)", (chat_id,))
-    conn.commit()
-    conn.close()
+# States
+class Form(StatesGroup):
+    waiting_for_input = State()
 
-def get_total_users():
-    conn = sqlite3.connect("thimbles/users.db")
-    c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM users")
-    count = c.fetchone()[0]
-    conn.close()
-    return count
-
-# --- Start Command ---
-@dp.message_handler(commands=['start'])
-async def start_command(message: types.Message):
-    add_user(message.chat.id)
-    total = get_total_users()
-
-    open_button = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("▶️ OPEN APP", url="https://1win-production.up.railway.app/")
+# Start command
+@dp.message_handler(commands='start')
+async def start_handler(message: types.Message):
+    keyboard = InlineKeyboardMarkup(row_width=1)
+    keyboard.add(
+        InlineKeyboardButton(text="🖥️ CONNECT YOUR SERVER", callback_data="connect_server"),
+        InlineKeyboardButton(text="▶️ START", callback_data="start_game"),
+        InlineKeyboardButton(text="⏭️ NEXT", callback_data="next_image"),
     )
+    await message.answer("<b>Welcome to Thimbles Hack Bot 🕵️</b>\nChoose an option below:", reply_markup=keyboard)
 
-    await message.answer(
-        f"<b>Welcome to Hack Bot!</b>\nTotal Users: <b>{total}</b>",
-        reply_markup=open_button
-    )
+# Callback handler
+@dp.callback_query_handler(lambda c: c.data == "connect_server")
+async def connect_server_handler(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+    await bot.send_message(callback_query.from_user.id, "<b>🔐 Please enter your Player ID (9-10 digits only):</b>")
+    await Form.waiting_for_input.set()
 
-# --- Admin Command ---
-@dp.message_handler(commands=['admin'])
-async def admin_panel(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        return await message.answer("⛔ You are not authorized.")
+@dp.message_handler(state=Form.waiting_for_input)
+async def handle_player_id(message: types.Message, state: FSMContext):
+    player_id = message.text.strip()
+    if not player_id.isdigit() or len(player_id) not in (9, 10):
+        await message.answer("<b>❌ Invalid ID. Please enter a 9 or 10 digit number.</b>")
+        return
+    await state.finish()
+    await message.answer("<b>✅ Server connected successfully!</b>\nWelcome to Login Activity.\nEnter your login key:")
 
-    panel = InlineKeyboardMarkup(row_width=1)
-    panel.add(
-        InlineKeyboardButton("📤 Send Text", callback_data="send_text"),
-        InlineKeyboardButton("🖼️ Send Photo", callback_data="send_photo"),
-        InlineKeyboardButton("🎞️ Send Video", callback_data="send_video"),
-        InlineKeyboardButton("📂 Send File", callback_data="send_file")
-    )
-    await message.answer("Welcome to Admin Panel:", reply_markup=panel)
+# Dummy button actions
+@dp.callback_query_handler(lambda c: c.data == "start_game")
+async def start_game_handler(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+    await bot.send_message(callback_query.from_user.id, "<b>⏳ Loading... Please wait</b>")
+    await bot.send_message(callback_query.from_user.id, "<b>✅ Game started! Enjoy!</b>")
 
-# --- Handle Admin Actions ---
-@dp.callback_query_handler(lambda c: c.data.startswith("send_"))
-async def handle_send_options(callback: types.CallbackQuery):
-    action = callback.data.split("_")[1]
-    await callback.message.answer(f"✅ Please send your {action} message now.\nYou can also add a link in caption.")
+@dp.callback_query_handler(lambda c: c.data == "next_image")
+async def next_image_handler(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+    await bot.send_message(callback_query.from_user.id, "<b>⏳ Loading next image...</b>")
+    # send photo/sticker if needed
 
-# --- Broadcast All Content ---
-@dp.message_handler(lambda msg: msg.from_user.id == ADMIN_ID, content_types=types.ContentType.ANY)
-async def broadcast_to_users(message: types.Message):
-    conn = sqlite3.connect("thimbles/users.db")
-    c = conn.cursor()
-    c.execute("SELECT chat_id FROM users")
-    users = c.fetchall()
-    conn.close()
-
-    count = 0
-    for user in users:
-        try:
-            if message.text:
-                await bot.send_message(user[0], message.text)
-            elif message.photo:
-                await bot.send_photo(user[0], message.photo[-1].file_id, caption=message.caption)
-            elif message.video:
-                await bot.send_video(user[0], message.video.file_id, caption=message.caption)
-            elif message.document:
-                await bot.send_document(user[0], message.document.file_id, caption=message.caption)
-            count += 1
-        except Exception as e:
-            pass  # Optional: log error
-
-    await message.reply(f"✅ Broadcast sent to {count} users.")
-
-# --- Run Bot ---
+# Run the bot
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
