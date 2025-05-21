@@ -5,7 +5,7 @@ from aiogram.utils import executor
 import sqlite3
 from aiogram.dispatcher.filters import Command
 
-API_TOKEN = 'YOUR_BOT_API_TOKEN'
+API_TOKEN = '7560937841:AAHizOMSN94qemWXYknRwW73nWAP0Ynt4wM'
 ADMIN_ID = 5767213888  # আপনার Telegram ID এখানে দিন
 
 bot = Bot(token=API_TOKEN, parse_mode='HTML')
