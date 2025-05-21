@@ -1,104 +1,95 @@
 import logging
-import sqlite3
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputFile
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
+import sqlite3
 from aiogram.dispatcher.filters import Command
-from config import BOT_TOKEN, OWNER_ID
-from utils import is_admin, add_user, get_all_users
 
-bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
+API_TOKEN = 'YOUR_BOT_API_TOKEN'
+ADMIN_ID = 5767213888  # আপনার Telegram ID এখানে দিন
+
+bot = Bot(token=API_TOKEN, parse_mode='HTML')
 dp = Dispatcher(bot)
 logging.basicConfig(level=logging.INFO)
 
-# Database setup
-conn = sqlite3.connect("database.db")
-cursor = conn.cursor()
-cursor.execute("""CREATE TABLE IF NOT EXISTS users (chat_id INTEGER PRIMARY KEY)""")
-conn.commit()
+# --- DB Section ---
+def add_user(chat_id):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("INSERT OR IGNORE INTO users (chat_id) VALUES (?)", (chat_id,))
+    conn.commit()
+    conn.close()
 
+def get_total_users():
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM users")
+    count = c.fetchone()[0]
+    conn.close()
+    return count
 
-# Start Command
-@dp.message_handler(commands=["start"])
+# --- Start ---
+@dp.message_handler(commands=['start'])
 async def start_cmd(message: types.Message):
     add_user(message.chat.id)
-    open_btn = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("🟦 Open App", url="https://1win-production.up.railway.app/")
+    users = get_total_users()
+
+    open_app_button = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("▶️ OPEN APP", url="https://1win-production.up.railway.app/")
     )
+
     await message.answer(
-        "<b>Welcome to the bot!</b>\nClick below to open the app.",
-        reply_markup=open_btn
+        f"<b>Welcome to Hack Bot!</b>\nTotal Users: <b>{users}</b>",
+        reply_markup=open_app_button
     )
 
+# --- Admin Panel ---
+@dp.message_handler(commands=['admin'])
+async def admin_cmd(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        return await message.answer("You are not allowed.")
 
-# Stats Command (for Admin)
-@dp.message_handler(commands=["stats"])
-async def stats_cmd(message: types.Message):
-    if message.from_user.id != OWNER_ID:
-        return
-    total = len(get_all_users())
-    await message.answer(f"Total users: <b>{total}</b>")
-
-
-# Admin Command
-@dp.message_handler(commands=["admin"])
-async def admin_panel(message: types.Message):
-    if not is_admin(message.from_user.id):
-        return
-    keyboard = InlineKeyboardMarkup(row_width=2)
-    keyboard.add(
-        InlineKeyboardButton("Send Text", callback_data="send_text"),
-        InlineKeyboardButton("Send Photo", callback_data="send_photo"),
-        InlineKeyboardButton("Send Video", callback_data="send_video"),
-        InlineKeyboardButton("Send File", callback_data="send_file"),
+    panel = InlineKeyboardMarkup(row_width=1)
+    panel.add(
+        InlineKeyboardButton("📤 Send Text", callback_data="send_text"),
+        InlineKeyboardButton("🖼️ Send Photo", callback_data="send_photo"),
+        InlineKeyboardButton("🎞️ Send Video", callback_data="send_video"),
+        InlineKeyboardButton("📂 Send File", callback_data="send_file")
     )
-    await message.answer("Admin Panel - Choose what to send:", reply_markup=keyboard)
+    await message.answer("Admin Panel:", reply_markup=panel)
 
-
-# Admin Button Handler
+# --- Admin Callback ---
 @dp.callback_query_handler(lambda c: c.data.startswith("send_"))
-async def process_send_buttons(callback: types.CallbackQuery):
-    await callback.message.delete()
+async def handle_admin_send(callback: types.CallbackQuery):
     action = callback.data.split("_")[1]
-    await callback.message.answer(f"Send the {action} with format:\n<code>text/link</code>")
+    await bot.send_message(callback.from_user.id, f"Send your {action} with optional link in caption.")
 
+# --- Broadcast Logic ---
+@dp.message_handler(lambda msg: msg.from_user.id == ADMIN_ID, content_types=types.ContentType.ANY)
+async def admin_broadcast(message: types.Message):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("SELECT chat_id FROM users")
+    users = c.fetchall()
+    conn.close()
 
-# Media Handler
-@dp.message_handler(content_types=types.ContentType.ANY)
-async def media_handler(message: types.Message):
-    if not is_admin(message.from_user.id):
-        return
-
-    if message.caption and "/" in message.caption:
-        text, url = message.caption.split("/", 1)
-        markup = InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔗 Visit Link", url=f"https://{url}")
-        )
-        users = get_all_users()
-        for uid in users:
-            try:
-                await message.copy_to(uid, caption=text, reply_markup=markup)
-            except:
-                pass
-        await message.reply("✅ Sent to all users!")
-
-
-# Text with link
-@dp.message_handler(lambda message: "/" in message.text)
-async def send_text_link(message: types.Message):
-    if not is_admin(message.from_user.id):
-        return
-    text, url = message.text.split("/", 1)
-    btn = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("🔗 Visit Link", url=f"https://{url}")
-    )
-    for user_id in get_all_users():
+    count = 0
+    for user in users:
         try:
-            await bot.send_message(user_id, text, reply_markup=btn)
+            if message.text:
+                await bot.send_message(user[0], message.text, disable_web_page_preview=True)
+            elif message.photo:
+                await bot.send_photo(user[0], message.photo[-1].file_id, caption=message.caption)
+            elif message.video:
+                await bot.send_video(user[0], message.video.file_id, caption=message.caption)
+            elif message.document:
+                await bot.send_document(user[0], message.document.file_id, caption=message.caption)
+            count += 1
         except:
             pass
-    await message.reply("✅ Message sent to all users!")
 
+    await message.reply(f"✅ Sent to {count} users.")
 
-if __name__ == "__main__":
+# --- Run Bot ---
+if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
