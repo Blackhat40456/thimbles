@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thimbles Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    body {
+      background: #0a0f1c;
+      color: #00ffc3;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    h1 {
+      margin-top: 30px;
+      margin-bottom: 10px;
+      font-size: 32px;
+      padding: 10px 30px;
+      border: 2px solid #00ffc3;
+      border-radius: 10px;
+      text-align: center;
+      text-shadow: 0 0 15px #00ffc3, 0 0 25px #0ff;
+      box-shadow: 0 0 25px #00ffc3 inset, 0 0 10px #00ffc3;
+      background: rgba(0, 255, 195, 0.05);
+      letter-spacing: 2px;
+    }
+    #userInfo {
+      margin-bottom: 30px;
+      font-size: 14px;
+      color: #ccc;
+      text-align: center;
+      line-height: 1.4;
+    }
+    .platform-select, .uid-section {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      animation: fadeIn 1s ease forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .btn {
+      background: #00ffc3;
+      color: #000;
+      border: none;
+      padding: 12px 30px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 0 20px #00ffc3;
+      transition: all 0.3s ease;
+    }
+    .btn:hover {
+      background: #0ff;
+      transform: scale(1.05);
+    }
+    input {
+      padding: 10px;
+      border-radius: 6px;
+      border: 2px solid #00ffc3;
+      background: #000;
+      color: #00ffc3;
+      font-size: 16px;
+      width: 220px;
+      text-align: center;
+      outline: none;
+    }
+    .warning-box {
+      margin-top: 30px;
+      border: 2px solid red;
+      padding: 15px;
+      color: #ff4d4d;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      font-size: 14px;
+      background: rgba(255, 0, 0, 0.1);
+      line-height: 1.6;
+      border-radius: 8px;
+      box-shadow: 0 0 10px red inset;
+    }
+    .game {
+      display: none;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 30px;
+      position: relative;
+      margin-bottom: 40px;
+      animation: fadeIn 1s ease forwards;
+    }
+    .cup-container {
+      position: relative;
+      text-align: center;
+      transition: transform 0.5s ease;
+    }
+    .cup {
+      width: 90px;
+    }
+    .ball {
+      position: absolute;
+      width: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 0;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    .win-highlight {
+      filter: drop-shadow(0 0 8px red) brightness(1.4);
+      transform: scale(1.1);
+    }
+    .win-label {
+      position: absolute;
+      top: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: red;
+      font-weight: bold;
+      font-size: 18px;
+      text-shadow: 0 0 5px #ff0000;
+    }
+    .scan-text {
+      margin-top: 20px;
+      height: 24px;
+      font-size: 18px;
+      color: #0ff;
+      text-shadow: 0 0 10px #0ff;
+      letter-spacing: 1px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>THIMBLES HACK BOTv5</h1>
+  <div id="userInfo"></div>
+
+  <div class="platform-select" id="platformSelect">
+    <h2>Select Your Platform</h2>
+    <button class="btn" onclick="selectPlatform('1xbet')">1XBET</button>
+    <button class="btn" onclick="selectPlatform('melbet')">MELBET</button>
+  </div>
+
+  <div class="uid-section" id="uidSection">
+    <p id="uidPrompt"></p>
+    <input type="text" id="uidInput" placeholder="Enter Your ID">
+    <button class="btn" onclick="validateUID()">Get Access</button>
+    <div class="warning-box">
+      ⚠️ IF YOU NOT REGISTER WITH OUR <b>REDHAT10</b> PROMO CODE, THIS BOT WILL NOT WORK FOR YOU ⚠️<br><br>
+      <b>1XBET Promo:</b> REDHAT10<br>
+      <b>MELBET Promo:</b> REDHAT10<br><br>
+      🔗 MELBET: <a href="https://bit.ly/REDHAT10" target="_blank" style="color:#ff4d4d">https://bit.ly/REDHAT10</a><br>
+      🔗 1XBET: <a href="https://1xbet.com" target="_blank" style="color:#ff4d4d">1xbet.com</a>
+    </div>
+  </div>
+
+  <div class="game" id="game">
+    <div class="cup-container" id="container0">
+      <div class="win-label" id="label0" style="display:none;">WIN</div>
+      <img src="https://i.imgur.com/ZmKSLUp.png" class="cup" id="cup0">
+      <img src="https://i.imgur.com/2TFlWig.png" class="ball" id="ball0">
+    </div>
+    <div class="cup-container" id="container1">
+      <div class="win-label" id="label1" style="display:none;">WIN</div>
+      <img src="https://i.imgur.com/ZmKSLUp.png" class="cup" id="cup1">
+      <img src="https://i.imgur.com/2TFlWig.png" class="ball" id="ball1">
+    </div>
+    <div class="cup-container" id="container2">
+      <div class="win-label" id="label2" style="display:none;">WIN</div>
+      <img src="https://i.imgur.com/ZmKSLUp.png" class="cup" id="cup2">
+      <img src="https://i.imgur.com/2TFlWig.png" class="ball" id="ball2">
+    </div>
+  </div>
+
+  <!-- Initially hidden -->
+  <button class="btn" onclick="revealBall()" style="display:none;">SHOW BALL POSITION</button>
+  <div class="scan-text" id="scanText"></div>
+
+  <script>
+    let selectedPlatform = "";
+
+    function selectPlatform(platform) {
+      selectedPlatform = platform;
+      document.getElementById("platformSelect").style.display = "none";
+      document.getElementById("uidSection").style.display = "flex";
+      document.getElementById("uidPrompt").innerText = `Enter your ${platform.toUpperCase()} ID:`;
+    }
+
+    function validateUID() {
+      const uid = document.getElementById("uidInput").value.trim();
+      if (/^\d{10}$/.test(uid)) {
+        document.getElementById("uidSection").style.display = "none";
+        document.getElementById("game").style.display = "flex";
+        document.querySelector("button[onclick='revealBall()']").style.display = "inline-block";
+        document.getElementById("userInfo").innerHTML = `<div>ID Verified: <b>${uid}</b><br>Platform: <b>${selectedPlatform.toUpperCase()}</b><br><span style='color:#ff6666; font-size: 13px;'>⚠️ Make sure you used REDHAT10 promo code</span></div>`;
+      } else {
+        alert("❌ Invalid ID. Please enter a valid 10-digit ID.");
+      }
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function animateSwap(id1, id2) {
+      const container1 = document.getElementById(`container${id1}`);
+      const container2 = document.getElementById(`container${id2}`);
+      const pos1 = container1.getBoundingClientRect();
+      const pos2 = container2.getBoundingClientRect();
+      const dx = pos2.left - pos1.left;
+
+      container1.style.transform = `translateX(${dx}px)`;
+      container2.style.transform = `translateX(${-dx}px)`;
+
+      await delay(600);
+
+      container1.style.transform = `translateX(0px)`;
+      container2.style.transform = `translateX(0px)`;
+
+      container1.parentNode.insertBefore(container2, container1);
+    }
+
+    async function revealBall() {
+      const balls = document.querySelectorAll(".ball");
+      const cups = document.querySelectorAll(".cup");
+      const labels = document.querySelectorAll(".win-label");
+      balls.forEach(b => b.style.opacity = 0);
+      cups.forEach(c => c.classList.remove("win-highlight"));
+      labels.forEach(l => l.style.display = "none");
+
+      scanText.innerText = "🔍 Scanning";
+      for (let i = 0; i < 3; i++) {
+        await delay(300);
+        scanText.innerText += ".";
+      }
+      scanText.innerText = "🔄 Shuffling Cups...";
+
+      const ballIndex = Math.floor(Math.random() * 3);
+
+      await animateSwap(0, 1);
+      await delay(300);
+      await animateSwap(1, 2);
+
+      await delay(500);
+      document.getElementById(`ball${ballIndex}`).style.opacity = 0.3;
+      document.getElementById(`cup${ballIndex}`).classList.add("win-highlight");
+      document.getElementById(`label${ballIndex}`).style.display = "block";
+      scanText.innerText = `✅ Ball found under cup ${ballIndex + 1}`;
+    }
+
+    document.getElementById("platformSelect").style.display = "flex";
+  </script>
+</body>
+</html>
