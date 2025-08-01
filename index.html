@@ -254,7 +254,7 @@
       await animateSwap(1, 2);
 
       await delay(500);
-      document.getElementById(`ball${ballIndex}`).style.opacity = 0.3;
+      document.getElementById(`ball${ballIndex}`).style.opacity = 0.5;
       document.getElementById(`cup${ballIndex}`).classList.add("win-highlight");
       document.getElementById(`label${ballIndex}`).style.display = "block";
       scanText.innerText = `✅ Ball found under cup ${ballIndex + 1}`;
