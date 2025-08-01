@@ -4,19 +4,31 @@ from aiogram.utils import executor
 from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.dispatcher.filters import Text
+from aiohttp import web
 
-API_TOKEN = '7560937841:AAHizOMSN94qemWXYknRwW73nWAP0Ynt4wM'  # এখানে আপনার Bot Token দিন
+API_TOKEN = '7560937841:AAHizOMSN94qemWXYknRwW73nWAP0Ynt4wM'
 
 bot = Bot(token=API_TOKEN, parse_mode="HTML")
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
-# States
+# Web server serving index.html from same folder
+async def index(request):
+    return web.FileResponse('./index.html')
+
+async def on_startup(dispatcher):
+    app = web.Application()
+    app.router.add_get('/', index)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 8000)
+    await site.start()
+    print("🌐 Web server running at http://localhost:8000")
+
+# Bot states
 class Form(StatesGroup):
     waiting_for_input = State()
 
-# Start command
 @dp.message_handler(commands='start')
 async def start_handler(message: types.Message):
     keyboard = InlineKeyboardMarkup(row_width=1)
@@ -27,7 +39,6 @@ async def start_handler(message: types.Message):
     )
     await message.answer("<b>Welcome to Thimbles Hack Bot 🕵️</b>\nChoose an option below:", reply_markup=keyboard)
 
-# Callback handler
 @dp.callback_query_handler(lambda c: c.data == "connect_server")
 async def connect_server_handler(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
@@ -43,7 +54,6 @@ async def handle_player_id(message: types.Message, state: FSMContext):
     await state.finish()
     await message.answer("<b>✅ Server connected successfully!</b>\nWelcome to Login Activity.\nEnter your login key:")
 
-# Dummy button actions
 @dp.callback_query_handler(lambda c: c.data == "start_game")
 async def start_game_handler(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
@@ -54,8 +64,7 @@ async def start_game_handler(callback_query: types.CallbackQuery):
 async def next_image_handler(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, "<b>⏳ Loading next image...</b>")
-    # send photo/sticker if needed
 
-# Run the bot
+# Start both bot and web server
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
