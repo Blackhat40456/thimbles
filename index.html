@@ -1,236 +1,266 @@
-import telebot
-import time
-import random
-import sqlite3
-from telebot import types
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thimbles Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    body {
+      background: #0a0f1c;
+      color: #00ffc3;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    h1 {
+      margin-top: 30px;
+      margin-bottom: 10px;
+      font-size: 32px;
+      padding: 10px 30px;
+      border: 2px solid #00ffc3;
+      border-radius: 10px;
+      text-align: center;
+      text-shadow: 0 0 15px #00ffc3, 0 0 25px #0ff;
+      box-shadow: 0 0 25px #00ffc3 inset, 0 0 10px #00ffc3;
+      background: rgba(0, 255, 195, 0.05);
+      letter-spacing: 2px;
+    }
+    #userInfo {
+      margin-bottom: 30px;
+      font-size: 14px;
+      color: #ccc;
+      text-align: center;
+      line-height: 1.4;
+    }
+    .platform-select, .uid-section {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      animation: fadeIn 1s ease forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .btn {
+      background: #00ffc3;
+      color: #000;
+      border: none;
+      padding: 12px 30px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 0 20px #00ffc3;
+      transition: all 0.3s ease;
+    }
+    .btn:hover {
+      background: #0ff;
+      transform: scale(1.05);
+    }
+    input {
+      padding: 10px;
+      border-radius: 6px;
+      border: 2px solid #00ffc3;
+      background: #000;
+      color: #00ffc3;
+      font-size: 16px;
+      width: 220px;
+      text-align: center;
+      outline: none;
+    }
+    .warning-box {
+      margin-top: 30px;
+      border: 2px solid red;
+      padding: 15px;
+      color: #ff4d4d;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      font-size: 14px;
+      background: rgba(255, 0, 0, 0.1);
+      line-height: 1.6;
+      border-radius: 8px;
+      box-shadow: 0 0 10px red inset;
+    }
+    .game {
+      display: none;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 30px;
+      position: relative;
+      margin-bottom: 40px;
+      animation: fadeIn 1s ease forwards;
+    }
+    .cup-container {
+      position: relative;
+      text-align: center;
+      transition: transform 0.5s ease;
+    }
+    .cup {
+      width: 90px;
+    }
+    .ball {
+      position: absolute;
+      width: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 0;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    .win-highlight {
+      filter: drop-shadow(0 0 8px red) brightness(1.4);
+      transform: scale(1.1);
+    }
+    .win-label {
+      position: absolute;
+      top: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: red;
+      font-weight: bold;
+      font-size: 18px;
+      text-shadow: 0 0 5px #ff0000;
+    }
+    .scan-text {
+      margin-top: 20px;
+      height: 24px;
+      font-size: 18px;
+      color: #0ff;
+      text-shadow: 0 0 10px #0ff;
+      letter-spacing: 1px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>THIMBLES HACK BOTv5</h1>
+  <div id="userInfo"></div>
 
-import asyncio
-from aiohttp import web
+  <div class="platform-select" id="platformSelect">
+    <h2>Select Your Platform</h2>
+    <button class="btn" onclick="selectPlatform('1xbet')">1XBET</button>
+    <button class="btn" onclick="selectPlatform('melbet')">MELBET</button>
+  </div>
 
-API_TOKEN = "7753611465:AAHGF6-DlfuX-vFi28MYjxbq-PVJoJeHKJ0"
-bot = telebot.TeleBot(API_TOKEN)
+  <div class="uid-section" id="uidSection">
+    <p id="uidPrompt"></p>
+    <input type="text" id="uidInput" placeholder="Enter Your ID">
+    <button class="btn" onclick="validateUID()">Get Access</button>
+    <div class="warning-box">
+      ⚠️ IF YOU NOT REGISTER WITH OUR <b>REDHAT10</b> PROMO CODE, THIS BOT WILL NOT WORK FOR YOU ⚠️<br><br>
+      <b>1XBET Promo:</b> REDHAT10<br>
+      <b>MELBET Promo:</b> REDHAT10<br><br>
+      🔗 MELBET: <a href="https://bit.ly/REDHAT10" target="_blank" style="color:#ff4d4d">https://bit.ly/REDHAT10</a><br>
+      🔗 1XBET: <a href="https://1xbet.com" target="_blank" style="color:#ff4d4d">1xbet.com</a>
+    </div>
+  </div>
 
-ADMIN_ID = 5767213888
-DB_PATH = "bot_data.db"
+  <div class="game" id="game">
+    <div class="cup-container" id="container0">
+      <div class="win-label" id="label0" style="display:none;">WIN</div>
+      <img src="https://i.imgur.com/ZmKSLUp.png" class="cup" id="cup0">
+      <img src="https://i.imgur.com/2TFlWig.png" class="ball" id="ball0">
+    </div>
+    <div class="cup-container" id="container1">
+      <div class="win-label" id="label1" style="display:none;">WIN</div>
+      <img src="https://i.imgur.com/ZmKSLUp.png" class="cup" id="cup1">
+      <img src="https://i.imgur.com/2TFlWig.png" class="ball" id="ball1">
+    </div>
+    <div class="cup-container" id="container2">
+      <div class="win-label" id="label2" style="display:none;">WIN</div>
+      <img src="https://i.imgur.com/ZmKSLUp.png" class="cup" id="cup2">
+      <img src="https://i.imgur.com/2TFlWig.png" class="ball" id="ball2">
+    </div>
+  </div>
 
-required_channels = {
-    "@redhat_REDHAT10": "Join Channel 1 📱",
-    "@mines_signalsREDHAT69": "Join Channel 2 📱"
-}
+  <!-- Initially hidden -->
+  <button class="btn" onclick="revealBall()" style="display:none;">SHOW BALL POSITION</button>
+  <div class="scan-text" id="scanText"></div>
 
-IMAGES = [
-    "https://i.imgur.com/7uuILcO.jpeg",
-    "https://i.imgur.com/iwDyPNq.jpeg",
-    "https://i.imgur.com/ogjTLdZ.jpeg",
-]
+  <script>
+    let selectedPlatform = "";
 
-last_message_per_user = {}
+    function selectPlatform(platform) {
+      selectedPlatform = platform;
+      document.getElementById("platformSelect").style.display = "none";
+      document.getElementById("uidSection").style.display = "flex";
+      document.getElementById("uidPrompt").innerText = `Enter your ${platform.toUpperCase()} ID:`;
+    }
 
-# --- Database ---
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
-            joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    conn.close()
+    function validateUID() {
+      const uid = document.getElementById("uidInput").value.trim();
+      if (/^\d{10}$/.test(uid)) {
+        document.getElementById("uidSection").style.display = "none";
+        document.getElementById("game").style.display = "flex";
+        document.querySelector("button[onclick='revealBall()']").style.display = "inline-block";
+        document.getElementById("userInfo").innerHTML = `<div>ID Verified: <b>${uid}</b><br>Platform: <b>${selectedPlatform.toUpperCase()}</b><br><span style='color:#ff6666; font-size: 13px;'>⚠️ Make sure you used REDHAT10 promo code</span></div>`;
+      } else {
+        alert("❌ Invalid ID. Please enter a valid 10-digit ID.");
+      }
+    }
 
-def add_user(user_id):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
-    conn.commit()
-    conn.close()
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
-def get_all_users():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT user_id FROM users")
-    users = [row[0] for row in c.fetchall()]
-    conn.close()
-    return users
+    async function animateSwap(id1, id2) {
+      const container1 = document.getElementById(`container${id1}`);
+      const container2 = document.getElementById(`container${id2}`);
+      const pos1 = container1.getBoundingClientRect();
+      const pos2 = container2.getBoundingClientRect();
+      const dx = pos2.left - pos1.left;
 
-def edit_or_send_message(chat_id, text, reply_markup=None, parse_mode=None):
-    last_msg_id = last_message_per_user.get(chat_id)
-    try:
-        if last_msg_id:
-            bot.edit_message_text(text, chat_id=chat_id, message_id=last_msg_id,
-                                  reply_markup=reply_markup, parse_mode=parse_mode)
-            return last_msg_id
-    except:
-        pass
-    msg = bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode=parse_mode)
-    last_message_per_user[chat_id] = msg.message_id
-    return msg.message_id
+      container1.style.transform = `translateX(${dx}px)`;
+      container2.style.transform = `translateX(${-dx}px)`;
 
-def has_joined_required_channels(user_id):
-    status_dict = {}
-    for channel in required_channels:
-        try:
-            member_status = bot.get_chat_member(channel, user_id)
-            status_dict[channel] = '✅' if member_status.status not in ['left', 'kicked'] else '❌'
-        except:
-            status_dict[channel] = '❌'
-    return status_dict
+      await delay(600);
 
-# --- Handlers ---
-@bot.message_handler(commands=['start'])
-def start(message):
-    user_id = message.from_user.id
-    add_user(user_id)
-    channel_status = has_joined_required_channels(user_id)
-    if all(v == '✅' for v in channel_status.values()):
-        welcome_user(message)
-    else:
-        ask_to_join_channels(message, channel_status)
+      container1.style.transform = `translateX(0px)`;
+      container2.style.transform = `translateX(0px)`;
 
-def ask_to_join_channels(message, status):
-    markup = types.InlineKeyboardMarkup()
-    for channel, stat in status.items():
-        markup.add(types.InlineKeyboardButton(f"{stat} {required_channels[channel]}", url=f"https://t.me/{channel[1:]}"))
-    markup.add(types.InlineKeyboardButton("✅ I've Joined", callback_data="check_channels"))
-    edit_or_send_message(message.chat.id, "*You must join all channels first!*", markup, parse_mode='Markdown')
+      container1.parentNode.insertBefore(container2, container1);
+    }
 
-@bot.callback_query_handler(func=lambda call: call.data == "check_channels")
-def check_channels(call):
-    user_id = call.from_user.id
-    status = has_joined_required_channels(user_id)
-    if all(s == '✅' for s in status.values()):
-        welcome_user(call.message)
-    else:
-        bot.answer_callback_query(call.id, "❌ You still haven't joined all channels!")
+    async function revealBall() {
+      const balls = document.querySelectorAll(".ball");
+      const cups = document.querySelectorAll(".cup");
+      const labels = document.querySelectorAll(".win-label");
+      balls.forEach(b => b.style.opacity = 0);
+      cups.forEach(c => c.classList.remove("win-highlight"));
+      labels.forEach(l => l.style.display = "none");
 
-def welcome_user(message):
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    markup.add(
-        types.InlineKeyboardButton("1xbet", callback_data="platform_1xbet"),
-        types.InlineKeyboardButton("melbet", callback_data="platform_melbet")
-    )
-    edit_or_send_message(message.chat.id, "🎮 *Select your platform first:*", markup, "Markdown")
+      scanText.innerText = "🔍 Scanning";
+      for (let i = 0; i < 3; i++) {
+        await delay(300);
+        scanText.innerText += ".";
+      }
+      scanText.innerText = "🔄 Shuffling Cups...";
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("platform_"))
-def handle_platform_selection(call):
-    platform = call.data.split("_")[1]
-    chat_id = call.message.chat.id
-    promo_text = "🎉 1xbet promo code: REDHAT10" if platform == "1xbet" else "🎉 melbet promo code: REDHAT10"
-    msg_id = edit_or_send_message(chat_id, promo_text)
-    time.sleep(5)
-    warning = (
-        "⚠️ <b>Important: For 100% working, you must create a new account using our promo code:</b>\n\n"
-        "🔸 <a href='https://1xbet.com'>1xBet Promo Code: REDHAT10</a>\n"
-        "🔸 <a href='https://melbet.com'>Melbet Promo Code: REDHAT10</a>\n\n"
-        "Without the Promo code, the hack may not work correctly.✅"
-    )
-    try:
-        bot.edit_message_text(warning, chat_id, msg_id, parse_mode="HTML", disable_web_page_preview=True)
-    except:
-        pass
-    send_game_menu(call.message)
+      const ballIndex = Math.floor(Math.random() * 3);
 
-def send_game_menu(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("🌀 Next Ball Position", "🛑 Stop Hack", "🎲 New Game", "🔄 Restart")
-    bot.send_message(message.chat.id, "*🎮 Game Menu — Choose an option:*", parse_mode='Markdown', reply_markup=markup)
+      await animateSwap(0, 1);
+      await delay(300);
+      await animateSwap(1, 2);
 
-@bot.message_handler(func=lambda m: m.text == "🌀 Next Ball Position")
-def next_ball_position(message):
-    show_next_ball_position(message.chat.id)
+      await delay(500);
+      document.getElementById(`ball${ballIndex}`).style.opacity = 0.3;
+      document.getElementById(`cup${ballIndex}`).classList.add("win-highlight");
+      document.getElementById(`label${ballIndex}`).style.display = "block";
+      scanText.innerText = `✅ Ball found under cup ${ballIndex + 1}`;
+    }
 
-@bot.callback_query_handler(func=lambda call: call.data == "next_ball_position")
-def callback_next_ball_position(call):
-    chat_id = call.message.chat.id
-    message_id = call.message.message_id
-    bot.edit_message_media(
-        types.InputMediaPhoto("https://www.blog.motionisland.com/wp-content/uploads/2022/03/Loading_1.gif", caption="⏳ Fetching..."),
-        chat_id=chat_id,
-        message_id=message_id,
-        reply_markup=types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("⏳ Loading...", callback_data="noop"))
-    )
-    time.sleep(2)
-    show_next_ball_position(chat_id, message_id)
-    bot.answer_callback_query(call.id)
-
-def show_next_ball_position(chat_id, message_id=None):
-    image = random.choice(IMAGES)
-    markup = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("▶️ Next Ball Position", callback_data="next_ball_position"))
-    if message_id:
-        bot.edit_message_media(types.InputMediaPhoto(image, caption="✅ Next position ready!"), chat_id, message_id, reply_markup=markup)
-    else:
-        bot.send_photo(chat_id, image, caption="✅ Next position ready!", reply_markup=markup)
-
-@bot.message_handler(func=lambda m: m.text == "🛑 Stop Hack")
-def stop_hack(message):
-    bot.send_message(message.chat.id, "✅ Hack stopped successfully!", parse_mode='Markdown')
-
-@bot.message_handler(func=lambda m: m.text == "🎲 New Game")
-def new_game(message):
-    bot.send_message(message.chat.id, "✅ New game ready!", parse_mode='Markdown')
-
-@bot.message_handler(func=lambda m: m.text == "🔄 Restart")
-def restart_bot(message):
-    start(message)
-
-@bot.message_handler(commands=['admin'])
-def admin_panel(message):
-    if message.from_user.id == ADMIN_ID:
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add("📨 Send Broadcast")
-        bot.send_message(message.chat.id, "Welcome to the admin panel:", reply_markup=markup)
-
-@bot.message_handler(func=lambda m: m.text == "📨 Send Broadcast" and m.from_user.id == ADMIN_ID)
-def request_broadcast(message):
-    bot.send_message(message.chat.id, "📩 Send the broadcast content:")
-    bot.register_next_step_handler(message, broadcast_to_all)
-
-def broadcast_to_all(message):
-    users = get_all_users()
-    count = 0
-    for uid in users:
-        try:
-            if message.content_type == "text":
-                bot.send_message(uid, message.text)
-            elif message.content_type == "photo":
-                bot.send_photo(uid, message.photo[-1].file_id, caption=message.caption or "")
-            elif message.content_type == "video":
-                bot.send_video(uid, message.video.file_id, caption=message.caption or "")
-            elif message.content_type == "sticker":
-                bot.send_sticker(uid, message.sticker.file_id)
-            elif message.content_type == "document":
-                bot.send_document(uid, message.document.file_id, caption=message.caption or "")
-            count += 1
-            time.sleep(0.3)
-        except:
-            continue
-    bot.send_message(message.chat.id, f"✅ Broadcast sent to {count} users.")
-
-@bot.message_handler(commands=['user'])
-def user_count(message):
-    if message.from_user.id == ADMIN_ID:
-        bot.send_message(message.chat.id, f"👥 Total users: {len(get_all_users())}")
-
-# --- Start everything ---
-async def main():
-    init_db()
-
-    # Start web server (index.html must be in same directory)
-    async def handle_index(request):
-        return web.FileResponse("index.html")
-
-    app = web.Application()
-    app.router.add_get("/", handle_index)
-
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8000)
-    await site.start()
-    print("✅ Web server running at http://0.0.0.0:8000")
-
-    # Start bot
-    bot.infinity_polling()
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    document.getElementById("platformSelect").style.display = "flex";
+  </script>
+</body>
+</html>
